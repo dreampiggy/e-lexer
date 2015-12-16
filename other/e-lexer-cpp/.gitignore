@@ -20,12 +20,9 @@
 *.lai
 *.la
 *.a
-*.com.elexer.lib
+*.lib
 
 # Executables
 *.exe
 *.out
 *.app
-
-# Intellij project files
-.idea/
