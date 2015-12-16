@@ -5,3 +5,4 @@ package com.elexer.lib;
  */
 public class NFA {
 }
+

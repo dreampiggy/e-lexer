@@ -1,0 +1,26 @@
+left: A
+right: B type: false
+
+left: B
+right: a type: true
+
+left: B
+right: C type: false
+
+left: S
+right: A type: false
+
+left: C
+right: ε type: true
+
+First(A): 
+a, 
+ε, 
+First(B): 
+a, 
+ε, 
+First(S): 
+a, 
+ε, 
+First(C): 
+ε, 

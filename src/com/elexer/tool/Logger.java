@@ -1,14 +1,25 @@
 package com.elexer.tool;
 
+import java.util.logging.Level;
+
 /**
  * Created by lizhuoli on 15/12/16.
  */
 public class Logger {
-    public static final Logger instance = new Logger();
-    private java.util.logging.Logger logger = java.util.logging.Logger.getLogger("elexer");
-    private Scanner scanner = Scanner.instance;
+    private static Logger instance = null;
+    public static Logger getInstance(Level level) {
+        if (instance == null) {
+            instance = new Logger(level);
+        }
+        return instance;
+    }
+    private java.util.logging.Logger logger;
+    private Scanner scanner = Scanner.getInstance(Config.input);
 
-    private Logger() {}
+    private Logger(Level level) {
+        logger = java.util.logging.Logger.getLogger("elexer");
+        logger.setLevel(level);
+    }
 
     public void log(String msg) {
         logger.info(msg);

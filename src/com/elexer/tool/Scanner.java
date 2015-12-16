@@ -7,15 +7,20 @@ import java.io.InputStream;
  * Created by lizhuoli on 15/12/16.
  */
 public class Scanner {
-    public static final Scanner instance = new Scanner();
-    private java.util.Scanner scanner = new java.util.Scanner(new BufferedInputStream(System.in));
+    private static Scanner instance = null;
+    public static Scanner getInstance(InputStream in) {
+        if (instance == null) {
+            instance = new Scanner(Config.input);
+        }
+        return instance;
+    }
+
+    private java.util.Scanner scanner;
     private String line;
     private int linePointer = 0;
     private int lineNumber = 0;
 
-    private Scanner() {}
-
-    public Scanner(InputStream in) {
+    private Scanner(InputStream in) {
         this.scanner = new java.util.Scanner(new BufferedInputStream(in));
     }
 

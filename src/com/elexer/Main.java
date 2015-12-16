@@ -1,5 +1,6 @@
 package com.elexer;
 
+import com.elexer.tool.Config;
 import com.elexer.tool.Logger;
 import com.elexer.tool.Scanner;
 import com.elexer.type.Grammar;
@@ -8,6 +9,7 @@ import com.elexer.type.Symbol;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 public class Main {
@@ -18,16 +20,36 @@ public class Main {
             productions.get(key).forEach(p -> {
                 System.out.println("left: " + p.getLeft().getValue());
                 p.getRight().forEach(s -> {
-                    System.out.println("right: " + s.getValue());
+                    System.out.println("right: " + s.getValue() + " type: " + s.isTerminal());
                 });
                 System.out.println("");
             });
         }
     }
 
+    public static void printFirstSet(Grammar grammar) {
+        for (String nonterminal : grammar.getProductions().keySet()) {
+            Set<Symbol> set = grammar.firstSet(new Symbol(nonterminal, false));
+            System.out.println("First(" + nonterminal + "): ");
+            for (Symbol s : set) {
+                System.out.println(s.getValue() + ", ");
+            }
+        }
+    }
+
+    public static void printFollowSet(Grammar grammar) {
+        for (String nonterminal : grammar.getProductions().keySet()) {
+            Set<Symbol> set = grammar.followSet(new Symbol(nonterminal, false));
+            System.out.println("Follow(" + nonterminal + "): ");
+            for (Symbol s : set) {
+                System.out.println(s.getValue() + ", ");
+            }
+        }
+    }
+
     public static void main(String[] args) {
-        Scanner scanner = Scanner.instance;
-        Logger logger = Logger.instance;
+        Scanner scanner = Scanner.getInstance(Config.input);
+        Logger logger = Logger.getInstance(Config.level);
 
         Production currentProduction = new Production();
         Grammar grammar = new Grammar();
@@ -54,7 +76,7 @@ public class Main {
                         logger.parseError("left production except A-Z");
                     }
                 case 1: //=> or {}
-                    if (input == '=') {
+                    if (input == '-') {
                         state = 4;
                         continue;
                     } else if (input == '{') {
@@ -62,7 +84,7 @@ public class Main {
                         state = 2;
                         continue;
                     } else {
-                        logger.parseError("left production except '=' or '{'");
+                        logger.parseError("left production except '-' or '{'");
                     }
                 case 2: //{} value is 0-9|*
                     if ((input >= '0' && input <= '9') || input == '*') {
@@ -77,7 +99,7 @@ public class Main {
                         logger.parseError("left production except 0-9* in {}");
                     }
                 case 3:
-                    if (input == '=') {
+                    if (input == '-') {
                         state = 4;
                         continue;
                     } else {
@@ -171,7 +193,7 @@ public class Main {
                 case 8: // epsilon
                     if (input == 'e') {
                         state = 6;
-                        currentProduction.addRight(new Symbol("ε", true));
+                        currentProduction.addRight(Symbol.epsilon);
                         continue;
                     } else {
                         logger.parseError("right production except e for epsilon");
@@ -180,6 +202,8 @@ public class Main {
                     logger.parseError("Fatal Error");
             }
         }
+        Grammar.setGrammar(grammar);
         printGrammar(grammar);
+        printFirstSet(grammar);
     }
 }

@@ -6,6 +6,7 @@ package com.elexer.type;
 public class Symbol {
     private String value;
     private boolean isTerminal;
+    public static Symbol epsilon = new Symbol("ε", true);
 
     public Symbol(String value, boolean isTerminal) {
         this.value = value;
