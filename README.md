@@ -1,6 +1,5 @@
 # e-lexer
 
-[![travis](https://img.shields.io/travis/lizhuoli1126/e-lexer.svg)](https://travis-ci.org/lizhuoli1126/e-lexer)
 [![License](https://img.shields.io/dub/l/vibe-d.svg)](https://opensource.org/licenses/MIT)
 [![Star](https://img.shields.io/github/stars/lizhuoli1126/e-lexer.svg?style=social&label=Star)](https://github.com/lizhuoli1126/e-lexer)
 
@@ -14,8 +13,7 @@ Click "Build" button
 **or**
 
 ```bash
-gradle clean
-gradle build -x test
+ant comlile
 ```
 
 # Test
@@ -28,7 +26,7 @@ Click "Test" button
 **or**
 
 ```bash
-gradle build
+ant runtest
 ```
 
 # Grammar
