@@ -1,5 +1,6 @@
 package com.elexer;
 
+import com.elexer.lib.LLParser;
 import com.elexer.tool.Config;
 import com.elexer.tool.Logger;
 import com.elexer.tool.Scanner;
@@ -15,8 +16,8 @@ import java.util.Set;
 public class Main {
 
     public static void printGrammar(Grammar grammar) {
-        Map<String, List<Production>> productions = grammar.getProductions();
-        for (String key : productions.keySet()) {
+        Map<Symbol, List<Production>> productions = grammar.getProductions();
+        for (Symbol key : productions.keySet()) {
             productions.get(key).forEach(p -> {
                 System.out.println("left: " + p.getLeft().getValue());
                 p.getRight().forEach(s -> {
@@ -24,26 +25,6 @@ public class Main {
                 });
                 System.out.println("");
             });
-        }
-    }
-
-    public static void printFirstSet(Grammar grammar) {
-        for (String nonterminal : grammar.getProductions().keySet()) {
-            Set<Symbol> set = grammar.firstSet(new Symbol(nonterminal, false));
-            System.out.println("First(" + nonterminal + "): ");
-            for (Symbol s : set) {
-                System.out.println(s.getValue() + ", ");
-            }
-        }
-    }
-
-    public static void printFollowSet(Grammar grammar) {
-        for (String nonterminal : grammar.getProductions().keySet()) {
-            Set<Symbol> set = grammar.followSet(new Symbol(nonterminal, false));
-            System.out.println("Follow(" + nonterminal + "): ");
-            for (Symbol s : set) {
-                System.out.println(s.getValue() + ", ");
-            }
         }
     }
 
@@ -160,7 +141,7 @@ public class Main {
                         continue;
                     } else if (input == '|') { //|
                         state = 6;
-                        grammar.addProductions(tempLeft, currentProduction);
+                        grammar.addProduction(new Symbol(tempLeft, false), currentProduction);
                         Production newProduction = new Production();
                         newProduction.setLeft(currentProduction.getLeft());
                         currentProduction = newProduction;
@@ -168,7 +149,7 @@ public class Main {
                     } else if (input == '\n') {
                         state = 0;
                         logger.log("success");
-                        grammar.addProductions(tempLeft, currentProduction);
+                        grammar.addProduction(new Symbol(tempLeft, false), currentProduction);
                         currentProduction = new Production();
                         tempLeft = "";
                         tempRight = "";
@@ -203,7 +184,17 @@ public class Main {
             }
         }
         Grammar.setGrammar(grammar);
+
         printGrammar(grammar);
-        printFirstSet(grammar);
+
+        LLParser parser = new LLParser(grammar);
+        parser.nullableSet();
+        parser.printNullable();
+//        parser.firstSet();
+//        parser.printFirst();
+//
+//        parser.followSet();
+//        parser.printFollow();
+
     }
 }
