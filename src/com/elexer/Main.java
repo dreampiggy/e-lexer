@@ -4,6 +4,7 @@ import com.elexer.lib.LLParser;
 import com.elexer.tool.Config;
 import com.elexer.tool.Logger;
 import com.elexer.tool.Scanner;
+import com.elexer.tool.Tool;
 import com.elexer.type.Grammar;
 import com.elexer.type.Production;
 import com.elexer.type.Symbol;
@@ -190,11 +191,22 @@ public class Main {
         LLParser parser = new LLParser(grammar);
         parser.nullableSet();
         parser.printNullable();
-//        parser.firstSet();
-//        parser.printFirst();
-//
-//        parser.followSet();
-//        parser.printFollow();
 
+        parser.firstSet();
+        parser.printFirst();
+
+        parser.followSet();
+        parser.printFollow();
+
+        parser.selectSet();
+        parser.printSelect();
+
+        String token = "ab";
+
+        parser.predictTable();
+
+        boolean result = parser.parse(Tool.stringToSymbolList(token));
+
+        logger.log(String.format("Parse result: %s", result));
     }
 }

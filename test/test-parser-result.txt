@@ -1,0 +1,8 @@
+Currernt top: S input: a
+Currernt top: A input: a
+Currernt top: B input: a
+Currernt top: C input: a
+Currernt top: a input: a
+Currernt top: b input: b
+
+Parse result: true

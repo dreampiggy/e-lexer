@@ -12,24 +12,97 @@ import java.util.*;
 public class LLParser {
     private Grammar grammar;
 
-    private Map<Symbol, Set<Symbol>> follow = new HashMap<>();
-    private Map<Symbol, Set<Symbol>> first = new HashMap<>();
-    private Set<Symbol> nullable = new HashSet<>();
+    private Map<Symbol, Set<Symbol>> follow;
+    private Map<Symbol, Set<Symbol>> first;
+    private Map<Production, Set<Symbol>> select;
+    private Set<Symbol> nullable;
+    private Map<Symbol, Map<Symbol, List<Symbol>>> table; // row is non-terminal, column is terminal
+    private List<Production> productionList;
+    private Set<Symbol> nonTerminalSet;
 
     public LLParser(Grammar grammar) {
         this.grammar = grammar;
+        this.productionList = grammar.getAllProductionList();
+        this.nonTerminalSet = grammar.getProductions().keySet();
     }
 
+    public boolean parse(List<Symbol> tokens) {
+        Stack<Symbol> stack = new Stack<>();
+        int i = 0;
+
+        stack.push(Symbol.start);
+        while (!stack.isEmpty()) {
+            Symbol top = stack.peek();
+            System.out.println("Currernt top: " + top.getValue() + " input: " + tokens.get(i).getValue());
+            if (top.isTerminal()) {
+                if (top.isEnd()) {
+                    return false; // fail: not LL(1) grammar, meet # but stack not empty
+                }
+                if (stack.peek().equals(tokens.get(i++))) {
+                    stack.pop();
+                    if (i > tokens.size()) {
+                        return false; // fail: no more input token
+                    }
+                } else {
+                    return false; // fail: current token not equal for stack
+                }
+            } else {
+                stack.pop();
+                List<Symbol> symbolList = table.get(top).get(tokens.get(i));
+                for (int j = symbolList.size()-1; j > -1; j--) {
+                    if (symbolList.get(i).isEpsilon()) {
+                        continue; // ignore the epsilon, which means no symbol
+                    }
+                    stack.push(symbolList.get(j)); // push reversely symbol in predict table
+                }
+            }
+        }
+
+        return true; // success
+    }
+
+    public void predictTable() {
+        // init
+        table = new HashMap<>();
+        nonTerminalSet.forEach(s -> table.put(s, new HashMap<>()));
+
+        for (Symbol row: nonTerminalSet) { // row for non-terminal
+            for (Production P: grammar.getProductionList(row)) {
+                List<Symbol> symbolList = P.getRight();
+                for (Symbol column: select.get(P)) { // column for termiinal, include #
+                    System.out.println("row: "+ row.getValue() + " column: "+column.getValue());
+                    table.get(row).put(column, symbolList); // define # to terminal. so we add all
+                }
+            }
+        }
+    }
+
+    /*
+	while (set is changing) {
+		for p in production: N -> T {
+			if (T == epsilon) {
+				NULLABLE(N) cup = {N}
+			}
+			if (T is T1T2...TN) {
+				if (T1 & T2 & ... Tn are all NULLABLE) {
+					NULLABLE(N) cup= {N}
+				}
+			}
+		}
+	}
+     */
     public void nullableSet() {
+        // init
+        nullable = new HashSet<>();
         Set<Symbol> copy = new HashSet<>();
+
         do {
             copy.addAll(nullable);
-            List<Production> productionList = grammar.getAllProductionList();
-            for(Production p: productionList) {
-                Symbol S = p.getLeft();
-                List<Symbol> symbolList = p.getRight();
+            for(Production P: productionList) {
+                Symbol N = P.getLeft();
+                List<Symbol> symbolList = P.getRight();
                 if (symbolList.size() == 1 && symbolList.get(0).isEpsilon()) {
-                    nullable.add(S);
+                    nullable.add(N);
                 }
                 boolean allNonterminalFlag = true;
                 for (Symbol symbol: symbolList) {
@@ -47,130 +120,139 @@ public class LLParser {
                         }
                     }
                     if (allInNullableFlag) {
-                        nullable.add(S);
+                        nullable.add(N);
                     }
                 }
             }
-        } while (!copy.containsAll(nullable));
+        } while (!copy.equals(nullable));
     }
 
+    /*
+	while(set is changing)
+	for p in (production like N -> T1T2...Tn) {
+		for(i = 1;i <= n;i++) { //positive
+			if(T[i] == a...) { //term
+				FIRST(N) cup= {a};
+				break;
+			}
+			else if(T[i] == M...) { //nonTerm
+				FIRST(N) cup= FIRST(M);
+				if (M is not in NULLABLE) {
+					break;
+				}
+			}
+		}
+	}
+     */
+    public void firstSet() {
+        // init
+        first = new HashMap<>();
+        nonTerminalSet.forEach(s -> first.put(s, new HashSet<>()));
+        Map<Symbol, Set<Symbol>> copy = new HashMap<>();
 
-
-    public Set<Symbol> firstSet(Symbol S) {
-        // if S -> ε, then add ε to first(S)
-        // if S -> a, then add a to first(S)
-        Set<Symbol> set = new HashSet<>();
-        if (S.isTerminal()) { // if S is terminal, add itself
-            set.add(S);
-            return set;
-        }
-        Grammar.getGrammar().getProductionList(S).forEach(p -> { // all the right production for S
-            List<Symbol> symbolList = p.getRight(); // all the symbol in a production
-            for (Symbol symbol : symbolList) {
-                if (symbol.isTerminal()) { // we define the epsilon to terminal so we can add together
-                    set.add(symbol);
-                } else { // if S -> ABC, use the following algorithm to do
-                    int j = 0;
-                    int k = symbolList.size();
-                    while (j < k) { // first calculate all the first(A) and cup equal(except epsilon) to first(S)
-                        Set<Symbol> tempSet = firstSet(symbolList.get(j));
-                        if (!tempSet.contains(Symbol.epsilon)) {
+        do {
+            for(Map.Entry<Symbol,Set<Symbol>> entry : first.entrySet()) {
+                copy.put(entry.getKey(), new HashSet<>(entry.getValue())); // attention, HashMap `putAll` function is not deep copy
+            }
+            for (Production P: productionList) {
+                Symbol N = P.getLeft();
+                List<Symbol> symbolList = P.getRight();
+                for (int i = 0; i < symbolList.size(); i++) {
+                    Symbol symbol  = symbolList.get(i);
+                    if (symbol.isTerminal()) {
+                        first.get(N).add(symbol); // add `a` to first(N)
+                        break;
+                    } else {
+                        first.get(N).addAll(first.get(symbol)); // add first(M) to first(N)
+                        if (!nullable.contains(symbol)) { // if A is not in nullable set, break
                             break;
                         }
-                        tempSet.remove(Symbol.epsilon); // except epsilon
-                        set.addAll(tempSet);
-                        j++;
-                    }
-                    // if all the first(A) contains epsilon, then cup eual epsilon to first(S)
-                    if (j == k && firstSet(symbolList.get(k-1)).contains(Symbol.epsilon)) {
-                        set.add(Symbol.epsilon);
                     }
                 }
             }
-        });
-        return set;
+        } while (!copy.equals(first));
     }
 
-    public void firstSet() {
-        grammar.getProductions().keySet().forEach(S -> {
-            first.put(S, firstSet(S));
-        });
-    }
-
-    public void follow() {
-        // if S -> aA, then add follow(S) except epsilon to follow(A)
-        // if S -> aAb, b != epsilon, add first(b) except epsilon to follow(A)
-        // if S -> aAb, b contains epsilon, add follow(S) to follow(A)
-        // init follow set
-        Grammar grammar = Grammar.getGrammar();
-        Map<Symbol ,List<Production>> productions = grammar.getProductions();
-        Set<Symbol> keySet = productions.keySet();
-
-        keySet.forEach(S -> follow.put(S, new HashSet<>()));
-
-        follow.get(Symbol.start).add(Symbol.end); // put the # into follow(Start)
-    }
-
-
-//    public Set<Symbol> followSet(Symbol S) {
-//        // if S -> aA, then add follow(S) except epsilon to follow(A)
-//        // if S -> aAb, b != epsilon, add first(b) except epsilon to follow(A)
-//        // if S -> aAb, b contains epsilon, add follow(S) to follow(A)
-//        Set<Symbol> set = new HashSet<>();
-//        Grammar grammar = Grammar.getGrammar();
-//        grammar.getAllProductionList().forEach(p -> {
-//            if (p.getLeft().isStart()) {
-//                set.add(Symbol.start); // first put the # into follow(Start)
-//            }
-//        });
-//
-//        for (Production production : grammar.getProductionList(S)) {
-//            List<Symbol> symbolList = production.getRight();
-//            int size = symbolList.size();
-//            if (size < 2 || !symbolList.get(0).isTerminal() || symbolList.get(1).isTerminal()) {
-//                return set; // should 2 symbol and look like aA*(capital for non-terminal)
-//            }
-//            if (size == 2) {
-//                set.addAll(followSet(symbolList.get(1)));
-//            }
-//
-//
-//        }
-//
-//        return set;
-//    }
-
-
+    /*
+    follow(S) = #
+	while(set is changing){
+		for p in (production like N -> T1T2...Tn) {
+			temp = FOLLOW(N) //copy to temp
+			for (i = n;i >= 1;i--) { //reverse
+				if (T[i] == a...) { //term
+					temp = {a}; // which is first(a)
+				} else if (T[i] == M...) { //nonTerm
+					FOLLOW(M) cup= temp;
+					if (M is not NULLABLE) {
+						temp = FIRST(M)
+					} else {
+						temp cup= FIRST(M) except epsilon
+					}
+				}
+			}
+		}
+	}
+     */
     public void followSet() {
-        // if S -> aA, then add follow(S) except epsilon to follow(A)
-        // if S -> aAb, b != epsilon, add first(b) except epsilon to follow(A)
-        // if S -> aAb, b contains epsilon, add follow(S) to follow(A)
-        // init follow set
-        Map<Symbol ,List<Production>> productions = grammar.getProductions();
-        Set<Symbol> keySet = productions.keySet();
+        // init
+        follow = new HashMap<>();
+        nonTerminalSet.forEach(s -> follow.put(s, new HashSet<>()));
+        follow.get(Symbol.start).add(Symbol.end); // add # to follow(S)
 
-        keySet.forEach(S -> follow.put(S, new HashSet<>()));
+        Map<Symbol, Set<Symbol>> copy = new HashMap<>();
 
-        follow.get(Symbol.start).add(Symbol.end); // put the # into follow(Start)
-        productions.forEach((key, value) -> {
-            value.forEach(p -> {
-                Symbol S = p.getLeft();
-                List<Symbol> symbolList = p.getRight();
-                int size = symbolList.size();
+        do {
+            for(Map.Entry<Symbol,Set<Symbol>> entry : follow.entrySet()) {
+                copy.put(entry.getKey(), new HashSet<>(entry.getValue())); // attention, HashMap `putAll` function is not deep copy
+            }
 
-                if (size > 1 && symbolList.get(0).isTerminal() && !symbolList.get(1).isTerminal()) {
-                    if (size == 2) {
-                        follow.get(symbolList.get(1)).addAll(follow.get(S));
-                    } else if (!symbolList.get(2).isEpsilon()) {
-                        Set<Symbol> temp = first.get(symbolList.get(2));
-                        temp.remove(Symbol.epsilon); // except epsilon
-                        follow.get(symbolList.get(1)).addAll(temp);
-                    } else if (first.get(symbolList.get(2)).contains(Symbol.epsilon)) {
-                        follow.get(symbolList.get(1)).addAll(follow.get(S));
+            for (Production P: productionList) {
+                Symbol N = P.getLeft();
+                List<Symbol> symbolList = P.getRight();
+                Set<Symbol> temp = new HashSet<>(follow.get(N)); // attention, use `new` to copy the set
+                for (int i = symbolList.size()-1; i > -1; i--) {
+                    Symbol symbol = symbolList.get(i);
+                    if (symbol.isTerminal()) {
+                        temp = new HashSet<>();
+                        temp.add(symbol); // temp = first(a) (well, actually is {a})
+                    } else {
+                        follow.get(symbol).addAll(temp);
+                        if (!nullable.contains(symbol)) {
+                            temp = first.get(symbol);
+                        } else {
+                            Set<Symbol> tempSet = new HashSet<>(first.get(symbol));
+                            tempSet.remove(Symbol.epsilon); // don't get epsilon
+                            temp.addAll(tempSet);
+                        }
                     }
                 }
-            });
-        });
+            }
+        } while (!copy.equals(follow));
+    }
+
+    // use first and follow set to generate select set to build predict table
+    public void selectSet() {
+        // init
+        select = new HashMap<>();
+        productionList.forEach(p -> select.put(p, new HashSet<>())); // now key is a production
+
+        for (Production P: productionList) {
+            Symbol N = P.getLeft();
+            List<Symbol> symbolList = P.getRight();
+            for (int i = 0; i < symbolList.size(); i++) {
+                Symbol symbol = symbolList.get(i);
+                if (symbol.isTerminal()) { // N -> a
+                    select.get(P).add(symbol); // just add and end
+                    break;
+                } else { // N -> M
+                    select.get(P).addAll(first.get(symbol)); // add first(M) to select(N)
+                    if (!nullable.contains(symbol)) {
+                        break; // N can't product epsilon, so all is over. else need to judge next symbol
+                    }
+                }
+            }
+            select.get(P).addAll(follow.get(N)); // if all can get epsilon in N -> T1T2..Tn, then add follow set
+        }
     }
 
     public void printNullable() {
@@ -181,7 +263,7 @@ public class LLParser {
     }
 
     public void printFirst() {
-        System.out.println("\nPrint First set\n");
+        System.out.println("\nPrint First Set\n");
         first.forEach((k, v) -> {
             System.out.println("First(" + k.getValue() + "): ");
             v.forEach(s -> System.out.print(s.getValue() + ", "));
@@ -190,9 +272,20 @@ public class LLParser {
     }
 
     public void printFollow() {
-        System.out.println("\nPrint Follow set\n");
+        System.out.println("\nPrint Follow Set\n");
         follow.forEach((k, v) -> {
             System.out.println("Follow(" + k.getValue() + "): ");
+            v.forEach(s -> System.out.print(s.getValue() + ", "));
+            System.out.println("");
+        });
+    }
+
+    public void printSelect() {
+        System.out.println("\nPrint Select Set\n");
+        select.forEach((k, v) -> {
+            System.out.print("Select(left: " + k.getLeft().getValue() + ", right: ");
+            k.getRight().forEach(s -> System.out.print(s.getValue()));
+            System.out.println("): ");
             v.forEach(s -> System.out.print(s.getValue() + ", "));
             System.out.println("");
         });
