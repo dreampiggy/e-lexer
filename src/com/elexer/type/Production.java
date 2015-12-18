@@ -9,6 +9,7 @@ import java.util.List;
 public class Production {
     private Symbol left;
     private List<Symbol> right = new ArrayList<>();
+    private int dot = 0; // dot pointer for LR table
 
     public Symbol getLeft() {
         return left;
@@ -24,5 +25,21 @@ public class Production {
 
     public void addRight(Symbol right) {
         this.right.add(right);
+    }
+
+    public int getDot() {
+        return this.dot;
+    }
+
+    public void moveRight() {
+        if (this.dot < this.getRight().size()-1) {
+            this.dot++;
+        }
+    }
+
+    public void moveLeft() {
+        if (this.dot > 0) {
+            this.dot--;
+        }
     }
 }

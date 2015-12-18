@@ -1,6 +1,7 @@
 package com.elexer;
 
 import com.elexer.lib.LLParser;
+import com.elexer.lib.Parser;
 import com.elexer.tool.Config;
 import com.elexer.tool.Logger;
 import com.elexer.tool.Scanner;
@@ -11,7 +12,6 @@ import com.elexer.type.Symbol;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 
 public class Main {
@@ -188,22 +188,11 @@ public class Main {
 
         printGrammar(grammar);
 
-        LLParser parser = new LLParser(grammar);
-        parser.nullableSet();
-        parser.printNullable();
+        Parser parser = new LLParser(grammar);
 
-        parser.firstSet();
-        parser.printFirst();
+        String token = "3 + 5 * 7";
 
-        parser.followSet();
-        parser.printFollow();
-
-        parser.selectSet();
-        parser.printSelect();
-
-        String token = "ab";
-
-        parser.predictTable();
+        parser.init();
 
         boolean result = parser.parse(Tool.stringToSymbolList(token));
 

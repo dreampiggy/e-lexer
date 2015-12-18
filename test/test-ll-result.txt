@@ -1,0 +1,20 @@
+LL(1) Parser start
+
+Currernt top: S input: 3
+Currernt top: T input: 3
+Currernt top: F input: 3
+Currernt top: 3 input: 3
+Currernt top: T{*} input: +
+Currernt top: B input: +
+Currernt top: + input: +
+Currernt top: T input: 5
+Currernt top: F input: 5
+Currernt top: 5 input: 5
+Currernt top: T{*} input: *
+Currernt top: * input: *
+Currernt top: F input: 7
+Currernt top: 7 input: 7
+Currernt top: T{*} input: #
+Currernt top: B input: #
+
+Parse result: true
