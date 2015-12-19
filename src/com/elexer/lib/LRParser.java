@@ -20,8 +20,7 @@ public class LRParser implements Parser {
 
     public void init() {
         analyzer.analyze();
-        genActionTable();
-        genGotoTable();
+        genLRTable();
     }
 
     public boolean parse(List<Symbol> tokens) {
@@ -68,12 +67,40 @@ public class LRParser implements Parser {
     }
 
 
-    public void genGotoTable() {
+    public void genLRTable() {
+        Set<State> canonical = analyzer.getCanonical();
 
+        for (State state: canonical) {
+            for (Production P: state.getClosure()) {
+                Symbol left = P.getLeft();
+                List<Symbol> symbolList = P.getRight();
+                Symbol predict = P.getPredict();
+                int dot = P.getDot();
+
+                if (dot < symbolList.size()) { // . is not at the end
+                    Symbol symbol = symbolList.get(dot);
+                    State nextState = new State(analyzer.gotoClosure(state.getClosure(), symbol));
+                    HashMap<Symbol, Action> temp = new HashMap<>();
+                    Action action = new Action(nextState);
+                    temp.put(symbol, action); // shift j
+                    actionTable.put(state, temp);
+                } else if (P.dotIsEnd()) { // . is at the end
+                    Action action = new Action(P);
+                    HashMap<Symbol, Action> temp = new HashMap<>();
+                    temp.put(predict, action);
+                    actionTable.put(state, temp); // reduce A->B
+                } else if (left.isPreStart()) { // is S' -> S
+                    HashMap<Symbol, Action> temp = new HashMap<>();
+                    temp.put(Symbol.end, Action.accept);
+                    actionTable.put(state, temp); // accept -> Action[i, eof]
+                }
+            }
+            for (Symbol nonTerminal: grammar.getProductions().keySet()) {
+                State nextState = new State(analyzer.gotoClosure(state.getClosure(), nonTerminal));
+                HashMap<Symbol, State> temp = new HashMap<>();
+                temp.put(nonTerminal, nextState);
+                gotoTable.put(state, temp);
+            }
+        }
     }
-
-    public void genActionTable() {
-
-    }
-
 }

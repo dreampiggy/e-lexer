@@ -2,6 +2,7 @@ package com.elexer.lib;
 
 import com.elexer.type.Grammar;
 import com.elexer.type.Production;
+import com.elexer.type.State;
 import com.elexer.type.Symbol;
 
 import java.util.*;
@@ -16,6 +17,7 @@ public class Analyzer {
     private Map<Symbol, Set<Symbol>> follow;
     private Map<Production, Set<Symbol>> select;
     private Set<Symbol> nullable;
+    private Set<State> canonical;
     private List<Production> productionList;
     private Set<Symbol> nonTerminalSet;
 
@@ -219,6 +221,122 @@ public class Analyzer {
                 }
             }
         }
+    }
+
+    // first set for a string, cup= all non-nullable first set
+    public Set<Symbol> firstStringSet(List<Symbol> symbolList) {
+        Set<Symbol> firstString = new HashSet<>();
+        int i;
+        for (i = 0; i < symbolList.size(); i++) {
+            Symbol symbol = symbolList.get(i);
+            Set<Symbol> firstSet = first.get(symbol);
+            if (firstSet.contains(Symbol.epsilon)) { // if contains epsilon, stop
+                break;
+            }
+            firstString.addAll(firstSet); // add first(s) to first_s(S...)
+        }
+        if (i == symbolList.size()) {
+            firstString.add(Symbol.epsilon);
+        }
+        return firstString;
+    }
+
+    /*
+
+     */
+    public Set<Production> genClosure(Set<Production> set) {
+        Set<Production> copy = new HashSet<>();
+
+        do {
+            copy.addAll(set);
+            for (Production P: set) { // like [N -> \beta C \delta, a]
+                List<Symbol> symbolList = P.getRight();
+                int dot = P.getDot(); // dot position
+
+                Symbol C = symbolList.get(dot);
+                Symbol a = P.getPredict();
+                if (symbolList.get(dot).isTerminal()) { // C must be non-terminal
+                    continue;
+                }
+                List<Symbol> delta = new ArrayList<>();
+
+                for (int i = dot; i < symbolList.size(); i++) {
+                    delta.add(symbolList.get(i));
+                }
+
+                for(Production production: grammar.getProductionList(C)) { // for all like C -> \gamma
+                    List<Symbol> gamma = production.getRight();
+                    Set<Symbol> firstSet = new HashSet<>(); // first(\delta a)
+                    if (delta.size() == 0) { // \delta is epsilon
+                        firstSet.add(a);
+                    } else { // \delta is not epsilon, so also add first(a)(which is actually a)
+                        delta.add(a); // \delta a
+                        firstSet.addAll(first.get(delta));
+                        firstSet.add(a);
+                    }
+                    for (Symbol symbol: firstSet) {
+                        Production closureProduction = new Production(C, gamma, symbol);
+                        set.add(closureProduction); // add [C -> .\gamma, b] to closure
+                    }
+                }
+            }
+        } while(!copy.equals(set));
+
+        return set;
+    }
+
+    public Set<Production> gotoClosure(Set<Production> set, Symbol symbol) {
+        Set<Production> movedClosure = new HashSet<>();
+
+        for (Production P: set) {
+            List<Symbol> symbolList = P.getRight();
+            int dot = P.getDot();
+            if (dot < P.getRight().size() && symbol == symbolList.get(dot)) { // like N -> \beta .x \delta(only x != epsilon)
+                P.moveRight();
+                movedClosure.add(P);
+            }
+        }
+
+        return genClosure(movedClosure);
+    }
+
+    public void canonicalSet() {
+        // init
+        canonical = new HashSet<>();
+        canonical.add(State.start);
+
+        int lastSize = 1; // init is CC_0, one item
+        do {
+            for (State state: canonical) {
+                if (state.isMarked()) {
+                    continue;
+                }
+                state.mark();
+                for (Production P: state.getClosure()) {
+                    List<Symbol> symbolList = P.getRight();
+                    int dot = P.getDot();
+                    if (P.dotIsStart()) { // dot should not at the start
+                        continue;
+                    }
+                    Symbol symbol = symbolList.get(dot-1); // get x like N -> x. \beta, x != epsilon
+
+                    Set<Production> temp = gotoClosure(state.getClosure(), symbol);
+                    if (canonical.contains(temp)) {
+                        canonical.add(new State(temp));
+                    }
+//                    recordTransition(set, temp, symbol);
+                }
+            }
+        } while (lastSize != canonical.size());
+    }
+
+    public void recordTransition(Set<Production> from, Set<Production> to, Symbol x) {
+        //record from CC_i to temp on symbol x
+    }
+
+
+    public Set<State> getCanonical() {
+        return this.canonical;
     }
 
     public Set<Symbol> getNullableSet() {

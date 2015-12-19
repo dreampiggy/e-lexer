@@ -19,7 +19,7 @@ public class LLParser implements Parser {
 
     public void init() {
         analyzer.analyze();
-        genPredictTable();
+        genLLTable();
     }
 
     public boolean parse(List<Symbol> tokens) {
@@ -58,7 +58,7 @@ public class LLParser implements Parser {
         return true; // success
     }
 
-    public void genPredictTable() {
+    public void genLLTable() {
         // init
         table = new HashMap<>();
         Set<Symbol> nonTerminalSet = grammar.getProductions().keySet();

@@ -11,6 +11,7 @@ public class Symbol {
     public static Symbol epsilon = new Symbol("ε", true);
     public static Symbol start = new Symbol("S", false);
     public static Symbol end = new Symbol("#", true);
+    public static Symbol preStart = new Symbol("S{*}", false);
 
     public Symbol(String value, boolean isTerminal) {
         this.value = value;
@@ -35,15 +36,19 @@ public class Symbol {
     }
 
     public boolean isEpsilon() {
-        return this.value.equals("ε");
+        return this.equals(epsilon);
     }
 
     public boolean isStart() {
-        return this.value.equals("S");
+        return this.equals(start);
     }
 
     public boolean isEnd() {
-        return this.value.equals("#");
+        return this.equals(end);
+    }
+
+    public boolean isPreStart() {
+        return this.equals(preStart);
     }
 
     public String getValue() {
