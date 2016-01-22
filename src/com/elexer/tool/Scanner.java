@@ -38,6 +38,14 @@ public class Scanner {
         return output;
     }
 
+    public String nextLine() {
+        return scanner.nextLine();
+    }
+
+    public boolean hasNextLine() {
+        return scanner.hasNextLine();
+    }
+
     public boolean hasNext() {
         if (line != null && linePointer <= line.length()) {
             return true;

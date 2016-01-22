@@ -1,0 +1,14 @@
+LR(1) Parser start
+
+
+Currernt top: State: #,[A -> [a], A -> [B], S -> [A], B -> [b], S{*} -> [S]] Input: a
+Type: SHIFT State: [A -> [a]] Symbol: null
+
+Currernt top: State: a,[A -> [a]] Input: #
+Type: REDUCE State: null Symbol: null
+
+Currernt top: State: A,[S -> [A]] Input: #
+Type: REDUCE State: null Symbol: null
+
+Currernt top: State: S,[S{*} -> [S]] Input: #
+Type: ACCEPT State: null Symbol: null

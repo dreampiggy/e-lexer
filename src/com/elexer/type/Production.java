@@ -10,7 +10,7 @@ public class Production {
     private Symbol left;
     private List<Symbol> right = new ArrayList<>();
     private int dot = 0; // dot pointer for LR table, 0 means N -> .M, sizeOf(M) means N -> M.
-    private Symbol predict; // use for LR(1) item predict symbol, must be terminal
+    private Symbol predict = Symbol.end; // use for LR(1) item predict symbol, must be terminal
 
     public static Production preStart; // [S' -> .S, #]
 
@@ -50,12 +50,9 @@ public class Production {
         this.right.add(right);
     }
 
-    private void setDot(int dot) {
-        if(dot >= 0 && dot < this.right.size()) {
+    public void setDot(int dot) {
+        if(dot >= 0 && dot <= this.right.size()) {
             this.dot = dot;
-        } else {
-            System.err.println("LR(1) dot symbol is out of range");
-            System.exit(1);
         }
     }
 
@@ -81,6 +78,16 @@ public class Production {
         }
     }
 
+    public boolean moveStart() {
+        this.dot = 0;
+        return true;
+    }
+
+    public boolean moveEnd() {
+        this.dot = this.getRight().size()+1;
+        return true;
+    }
+
     public boolean dotIsEnd() {
         return this.dot == this.right.size();
     }
@@ -100,5 +107,23 @@ public class Production {
 
     public Symbol getPredict() {
         return this.predict;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.left.hashCode() + this.right.hashCode() + this.predict.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Production) {
+            Production other = (Production)o;
+            return other.left.equals(this.left) && other.right.equals(this.right)  && other.predict.equals(this.predict);
+        }
+        return false;
+    }
+
+    @Override public String toString() {
+        return this.getLeft().toString() + " -> " + this.getRight().toString();
     }
 }

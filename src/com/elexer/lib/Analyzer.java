@@ -19,6 +19,7 @@ public class Analyzer {
     private Set<Symbol> nullable;
     private Set<State> canonical;
     private List<Production> productionList;
+    private Set<Symbol> terminalSet;
     private Set<Symbol> nonTerminalSet;
 
     public static Analyzer getInstance(Grammar grammar) {
@@ -31,6 +32,7 @@ public class Analyzer {
     private Analyzer(Grammar grammar) {
         this.grammar = grammar;
         this.productionList = grammar.getAllProductionList();
+        this.terminalSet = grammar.getTerminalSet();
         this.nonTerminalSet = grammar.getProductions().keySet();
     }
 
@@ -134,6 +136,12 @@ public class Analyzer {
                 }
             }
         } while (!copy.equals(first));
+
+        for (Symbol term: terminalSet) { // add all terminal symbol to first set
+            Set<Symbol> temp = new HashSet<>();
+            temp.add(term);
+            first.put(term, temp);
+        }
     }
 
     /*
@@ -226,8 +234,7 @@ public class Analyzer {
     // first set for a string, cup= all non-nullable first set
     public Set<Symbol> firstStringSet(List<Symbol> symbolList) {
         Set<Symbol> firstString = new HashSet<>();
-        int i;
-        for (i = 0; i < symbolList.size(); i++) {
+        for (int i = 0; i < symbolList.size(); i++) {
             Symbol symbol = symbolList.get(i);
             Set<Symbol> firstSet = first.get(symbol);
             if (firstSet.contains(Symbol.epsilon)) { // if contains epsilon, stop
@@ -235,23 +242,28 @@ public class Analyzer {
             }
             firstString.addAll(firstSet); // add first(s) to first_s(S...)
         }
-        if (i == symbolList.size()) {
-            firstString.add(Symbol.epsilon);
-        }
         return firstString;
     }
 
     /*
-
+	closure(s)
+		while (s is still changing)
+			for each item [A→β•Cδ,a]∈s
+				for each production C→γ ∈ P
+					for each b∈FIRST(δa)
+						s ← s ∪ {[C→•γ,b]}
+		return s
      */
     public Set<Production> genClosure(Set<Production> set) {
         Set<Production> copy = new HashSet<>();
 
         do {
             copy.addAll(set);
-            for (Production P: set) { // like [N -> \beta C \delta, a]
+            for (Production P: copy) { // like [N -> \beta C \delta, a]
                 List<Symbol> symbolList = P.getRight();
                 int dot = P.getDot(); // dot position
+
+                if (P.dotIsEnd()) continue; // there must be an C before dot meat end
 
                 Symbol C = symbolList.get(dot);
                 Symbol a = P.getPredict();
@@ -260,23 +272,25 @@ public class Analyzer {
                 }
                 List<Symbol> delta = new ArrayList<>();
 
-                for (int i = dot; i < symbolList.size(); i++) {
-                    delta.add(symbolList.get(i));
+                int start = dot + 1; // start after C
+                if (start > symbolList.size() - 1) {
+                    // delta is epsilon
+                } else {
+                    for (int i = start; i < symbolList.size(); i++) {
+                        delta.add(symbolList.get(i));
+                    }
                 }
 
                 for(Production production: grammar.getProductionList(C)) { // for all like C -> \gamma
                     List<Symbol> gamma = production.getRight();
-                    Set<Symbol> firstSet = new HashSet<>(); // first(\delta a)
-                    if (delta.size() == 0) { // \delta is epsilon
-                        firstSet.add(a);
-                    } else { // \delta is not epsilon, so also add first(a)(which is actually a)
-                        delta.add(a); // \delta a
-                        firstSet.addAll(first.get(delta));
-                        firstSet.add(a);
+                    if (!a.isEnd()) { // trick to calculate firstString without modify LL(1) first set
+                        delta.add(a);
                     }
-                    for (Symbol symbol: firstSet) {
-                        Production closureProduction = new Production(C, gamma, symbol);
-                        set.add(closureProduction); // add [C -> .\gamma, b] to closure
+                    Set<Symbol> firstSet = firstStringSet(delta);
+                    firstSet.add(a);
+                    for (Symbol b : firstSet) { // predict symbol
+                        Production temp = new Production(production.getLeft(), production.getRight(), b);
+                        set.add(temp); // add [C -> . \gamma , b]
                     }
                 }
             }
@@ -285,29 +299,60 @@ public class Analyzer {
         return set;
     }
 
+    /*
+    goto(s, x)
+        moved ← ∅
+        for each item i ∈ s
+            if the form of i is [α→β•xδ, a] then moved ← moved ∪ {[α→βx•δ, a]}
+        return closure(moved)
+     */
     public Set<Production> gotoClosure(Set<Production> set, Symbol symbol) {
         Set<Production> movedClosure = new HashSet<>();
 
         for (Production P: set) {
             List<Symbol> symbolList = P.getRight();
             int dot = P.getDot();
-            if (dot < P.getRight().size() && symbol == symbolList.get(dot)) { // like N -> \beta .x \delta(only x != epsilon)
-                P.moveRight();
-                movedClosure.add(P);
+            if (!P.dotIsEnd() && symbol.equals(symbolList.get(dot))) { // like N -> \beta .x \delta(only x != epsilon)
+                Production temp = new Production(P.getLeft(), P.getRight(), P.getPredict());
+                temp.setDot(P.getDot() + 1);
+                movedClosure.add(temp);
             }
+        }
+
+        if (movedClosure.isEmpty()) {
+            return null;
         }
 
         return genClosure(movedClosure);
     }
 
+    /*
+    cc0 ← closure({[S′ →• S, eof]})
+    CC ← {cc0}
+    while (new sets are still being added to CC)
+        for each unmarked set cci ∈ CC
+            mark cci as processed
+            for each x following a • in an item in cci
+            temp ← goto(cci,x)
+            if temp ∈/CC
+                then CC ← CC∪{temp}
+            record transition from cci to temp on x
+     */
     public void canonicalSet() {
         // init
         canonical = new HashSet<>();
-        canonical.add(State.start);
+        Set<Production> startItem = new HashSet<>();
+        startItem.add(Production.preStart);
+        State start = new State(genClosure(startItem));
+        State.setStart(start);
+        canonical.add(start);
 
-        int lastSize = 1; // init is CC_0, one item
+        Set<State> copy = new HashSet<>();
+
         do {
-            for (State state: canonical) {
+            copy.addAll(canonical);
+            copy.add(new State(genClosure(startItem)));
+            for (State state: copy) {
                 if (state.isMarked()) {
                     continue;
                 }
@@ -315,24 +360,23 @@ public class Analyzer {
                 for (Production P: state.getClosure()) {
                     List<Symbol> symbolList = P.getRight();
                     int dot = P.getDot();
-                    if (P.dotIsStart()) { // dot should not at the start
-                        continue;
-                    }
-                    Symbol symbol = symbolList.get(dot-1); // get x like N -> x. \beta, x != epsilon
+                    if (P.dotIsEnd()) continue;
+                    Symbol symbol = symbolList.get(dot); // get x like N -> x. \beta, x != epsilon
+                    if (symbol.isEpsilon()) continue;
 
-                    Set<Production> temp = gotoClosure(state.getClosure(), symbol);
-                    if (canonical.contains(temp)) {
-                        canonical.add(new State(temp));
+                    State temp = new State(gotoClosure(state.getClosure(), symbol));
+                    if (!canonical.contains(temp)) {
+                        canonical.add(temp);
                     }
-//                    recordTransition(set, temp, symbol);
+//                    recordTransition(set, temp, symbol); // we can get efficiency better if use record
                 }
             }
-        } while (lastSize != canonical.size());
+        } while (!copy.equals(canonical));
     }
 
-    public void recordTransition(Set<Production> from, Set<Production> to, Symbol x) {
-        //record from CC_i to temp on symbol x
-    }
+//    public void recordTransition(Set<Production> from, Set<Production> to, Symbol x) {
+//        record from CC_i to temp on symbol x
+//    }
 
 
     public Set<State> getCanonical() {

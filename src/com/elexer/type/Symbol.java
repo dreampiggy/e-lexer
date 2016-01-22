@@ -20,13 +20,14 @@ public class Symbol {
 
     @Override
     public int hashCode() {
-        return this.value.hashCode() + (this.isTerminal() ? 1 : 0);
+        return this.value.hashCode();
     }
 
     @Override
     public boolean equals(Object o) {
         if (o instanceof Symbol) {
-            return ((Symbol) o).value.equals(this.value);
+            Symbol other = (Symbol)o;
+            return other.value.equals(this.value) && other.isTerminal == this.isTerminal;
         }
         return false;
     }
@@ -57,5 +58,9 @@ public class Symbol {
 
     public void setValue(String value) {
         this.value = value;
+    }
+
+    @Override public String toString() {
+        return this.value;
     }
 }

@@ -54,4 +54,8 @@ public class Action {
     public State getState() {
         return state;
     }
+
+    @Override public String toString() {
+        return "Type: " + type.toString() + " State: " + state + " Symbol: " + symbol;
+    }
 }

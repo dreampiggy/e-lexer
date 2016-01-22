@@ -1,6 +1,7 @@
 package com.elexer;
 
 import com.elexer.lib.LLParser;
+import com.elexer.lib.LRParser;
 import com.elexer.lib.Parser;
 import com.elexer.tool.Config;
 import com.elexer.tool.Logger;
@@ -30,6 +31,10 @@ public class Main {
     }
 
     public static void main(String[] args) {
+
+        System.out.println("Input the content-free grammar, you can use 'Enter' to separate lines.\n" +
+                "Use :q to stop input.");
+
         Scanner scanner = Scanner.getInstance(Config.input);
         Logger logger = Logger.getInstance(Config.level);
 
@@ -42,6 +47,9 @@ public class Main {
         while (true) {
             if (scanner.hasNext()) {
                 input = scanner.nextChar();
+                if (input == ':' && scanner.nextChar() == 'q') {
+                    break;
+                }
             } else {
                 break;
             }
@@ -188,14 +196,19 @@ public class Main {
 
         printGrammar(grammar);
 
-        Parser parser = new LLParser(grammar);
-
-        String token = "3 + 5 * 7";
+        Parser parser = new LRParser(grammar);
 
         parser.init();
 
-        boolean result = parser.parse(Tool.stringToSymbolList(token));
+        parser.log();
 
-        logger.log(String.format("Parse result: %s", result));
+        System.out.println("Now, input the token you want to recognize and press enter.\n" +
+                "Use EOF to stop.");
+
+        while (scanner.hasNextLine()) {
+            String token = scanner.nextLine();
+            boolean result = parser.parse(Tool.stringToSymbolList(token));
+            logger.log(String.format("Parse result: %s", result));
+        }
     }
 }

@@ -22,9 +22,11 @@ public class Grammar {
 
     public void addProduction(Symbol key, Production value) {
         this.productionList.add(value);
-        if (key.isTerminal()) {
-            terminalSet.add(key);
-        }
+        value.getRight().forEach(symbol -> {
+            if (symbol.isTerminal()) {
+                this.terminalSet.add(symbol); // Set<> will auto call contains() to avoid dup add
+            }
+        });
         if (this.productions.get(key) != null) {
             this.productions.get(key).add(value);
         } else {

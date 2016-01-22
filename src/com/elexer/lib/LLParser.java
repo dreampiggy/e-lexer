@@ -18,7 +18,6 @@ public class LLParser implements Parser {
     }
 
     public void init() {
-        analyzer.analyze();
         genLLTable();
     }
 
@@ -68,13 +67,25 @@ public class LLParser implements Parser {
             for (Production P: grammar.getProductionList(row)) {
                 List<Symbol> symbolList = P.getRight();
                 for (Symbol column: analyzer.getSelectSet().get(P)) { // column for terminal, include #
-                    if (table.get(row).get(column) != null) {
-                        System.err.println("Not a LL(1) grammar ! Parser abort.");
+                    List<Symbol> item = table.get(row).get(column);
+                    if (item != null) {
+                        System.err.println("Duplicate LL(1) item at " + item + "\nParser abort.");
                         System.exit(1);
                     }
                     table.get(row).put(column, symbolList); // define # to terminal. so we add all
                 }
             }
         }
+    }
+
+    public void printTable() {
+
+    }
+
+    public void log() {
+        analyzer.printNullable();
+        analyzer.printFirst();
+        analyzer.printFollow();
+        analyzer.printSelect();
     }
 }

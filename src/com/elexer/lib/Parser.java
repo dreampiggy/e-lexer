@@ -9,5 +9,6 @@ import java.util.List;
  */
 public interface Parser {
     public void init();
+    public void log();
     public boolean parse(List<Symbol> tokens);
 }
